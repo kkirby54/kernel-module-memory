@@ -13,7 +13,7 @@
 #include <linux/slab.h>     // for kmalloc, kfree
 
 #define PROC_NAME "hw2"
-#define PERIOD_DEFAULT 10;
+#define PERIOD_DEFAULT 5;
 
 MODULE_AUTHOR("Kim, Minhyup");
 MODULE_LICENSE("GPL v2");
@@ -39,7 +39,8 @@ void printf_data(struct seq_file* s, struct task_struct* currProcess);
 void printf_heap(struct seq_file* s, struct task_struct* currProcess);
 void printf_stack(struct seq_file* s, struct task_struct* currProcess);
 
-static unsigned long printAddressAndValue(struct seq_file* s, struct task_struct* currProcess, unsigned long vaddr);
+static void printAddressAndValue(struct seq_file* s, struct task_struct* currProcess, unsigned long vaddr);
+
 /**
  * This function is called for each "step" of a sequence
  *
@@ -49,6 +50,7 @@ static int hw2_seq_show(struct seq_file *s, void *v)
     struct task_struct* task;
     long id;
 
+    // convert string to int
     kstrtol(name, 10, &id);
     task = get_pid_task(find_get_pid((int) id), PIDTYPE_PID);
 
@@ -69,42 +71,27 @@ static int hw2_seq_show(struct seq_file *s, void *v)
 #define for_each_process(p) \
         for (p = &init_task ; (p = next_task(p)) != &init_task ; )
 
-// static void get_pgtable_macro(struct seq_file* s)
-// {
-//     seq_printf(s, "PAGE_OFFSET = 0x%lx\n", PAGE_OFFSET);
-//     seq_printf(s,"PGDIR_SHIFT = %d\n", PGDIR_SHIFT);
-//     seq_printf(s,"PUD_SHIFT = %d\n", PUD_SHIFT);
-//     seq_printf(s,"PMD_SHIFT = %d\n", PMD_SHIFT);
-//     seq_printf(s,"PAGE_SHIFT = %d\n", PAGE_SHIFT);
-
-//     seq_printf(s,"PTRS_PER_PGD = %d\n", PTRS_PER_PGD);
-//     seq_printf(s,"PTRS_PER_PUD = %d\n", PTRS_PER_PUD);
-//     seq_printf(s,"PTRS_PER_PMD = %d\n", PTRS_PER_PMD);
-//     seq_printf(s,"PTRS_PER_PTE = %d\n", PTRS_PER_PTE);
-
-//     seq_printf(s,"PAGE_MASK = 0x%lx\n", PAGE_MASK);
-// }
-
 void printBaseInfo(struct seq_file* s, struct task_struct* currProcess){
 
     printf_bar(s);
     seq_printf(s, "Student name(ID): %s(%s)\n", "Kim, Minhyup", "2017127046");
-    seq_printf(s, "Process name(ID): %s(%lu)\n", currProcess->comm, currProcess->pid);
+    seq_printf(s, "Process name(ID): %s(%d)\n", currProcess->comm, currProcess->pid);
     seq_printf(s, "Memory info #%d\n", try_count);
 
     if (NULL != currProcess->mm && NULL != currProcess->mm->pgd){
-        seq_printf(s, "PGD base address: 0x%lx\n", currProcess->mm->pgd);
+        seq_printf(s, "PGD base address: 0x%lx\n", (unsigned long) currProcess->mm->pgd);
         printf_code(s, currProcess);
         printf_data(s, currProcess);
         printf_heap(s, currProcess);
         printf_stack(s, currProcess);
+        printf_bar(s);
     }
     else
         seq_printf(s, "cannot access task_struct->mm\n");
 }
 
 
-static unsigned long printAddressAndValue(struct seq_file* s, struct task_struct* currProcess, unsigned long vaddr)
+static void printAddressAndValue(struct seq_file* s, struct task_struct* currProcess, unsigned long vaddr)
 {
     pgd_t *pgd;
     pud_t *pud;
@@ -114,57 +101,46 @@ static unsigned long printAddressAndValue(struct seq_file* s, struct task_struct
     unsigned long page_addr = 0;
     unsigned long page_offset = 0;
 
+    // get pgd with pgd_offset
     pgd = pgd_offset(currProcess->mm, vaddr);
     if (pgd_none(*pgd)){
         seq_printf(s, "PGD_NONE DETECTED!\n");
-        return -1;
+        return;
     }
-    seq_printf(s, "- PGD address, value: 0x%lx, 0x%lx\n", pgd, pgd_val(*pgd));
+    seq_printf(s, "- PGD address, value: 0x%lx, 0x%lx\n", (unsigned long) pgd, (unsigned long) pgd_val(*pgd));
 
+    // get pud with pud_offset
     pud = pud_offset((p4d_t*) pgd, vaddr);
     if (pud_none(*pud)){
         seq_printf(s, "PUD_NONE DETECTED!\n");
-        return -1;
+        return;
     }
-    seq_printf(s, "- PUD address, value: 0x%lx, 0x%lx\n", pud, pud_val(*pud));
+    seq_printf(s, "- PUD address, value: 0x%lx, 0x%lx\n", (unsigned long) pud, (unsigned long) pud_val(*pud));
 
+    // get pmd with pmd_offset
     pmd = pmd_offset(pud, vaddr);
     if (pmd_none(*pmd)){
         seq_printf(s, "PMD_NONE DETECTED!\n");
-        return -1;
+        return;
     }
-    seq_printf(s, "- PMD address, value: 0x%lx, 0x%lx\n", pmd, pmd_val(*pmd));
+    seq_printf(s, "- PMD address, value: 0x%lx, 0x%lx\n", (unsigned long) pmd, (unsigned long) pmd_val(*pmd));
 
+    // get pte with pte_offset_kernel
     pte = pte_offset_kernel(pmd, vaddr);
     if (pte_none(*pte)){
         seq_printf(s, "PTE_NONE DETECTED!\n");
-        return -1;
+        return;
     }
-    seq_printf(s, "- PTE address, value: 0x%lx, 0x%lx\n", pte, pte_val(*pte));
+    seq_printf(s, "- PTE address, value: 0x%lx, 0x%lx\n", (unsigned long) pte, (unsigned long) pte_val(*pte));
 
-
-    /* Page frame physical address mechanism | offset */
-
-    // 또는 virt_to_page() 매크로 사용하기
+    // get actual physical address (bit operations between address and offset)
     page_addr = pte_val(*pte) & PAGE_MASK;
-    
-    unsigned long page_addr2 = 0;
-    page_addr2 = (pte_val(*pte) >> 12) & PAGE_MASK;
     page_offset = vaddr & ~PAGE_MASK;
     paddr = page_addr | page_offset;
 
-    seq_printf(s, "- Page addr: 0x%lx\n", page_addr);
-    seq_printf(s, "- Page addr2: 0x%lx\n", page_addr2);
-    seq_printf(s, "- Page offset: 0x%lx\n", page_offset);
-
     seq_printf(s, "- Physical address: 0x%lx\n", paddr);
-    seq_printf(s, "- Physical address2: 0x%lx\n", page_addr2 | page_offset);
 
-
-    struct page* page = pte_page(*pte);
-    seq_printf(s, "- page to phys: 0x%lx\n", page_to_phys(page));
-
-    return paddr;
+    return;
 }
 
 /**
@@ -234,9 +210,6 @@ static const struct proc_ops hw2_proc_fops = {
 	.proc_lseek = seq_lseek,
 	.proc_release = seq_release
 };
-// static const struct proc_ops hw2_proc_fops = {
-//     .proc_read = procfile_read,
-// };
 
 
 static struct timer_list my_timer;
@@ -278,20 +251,18 @@ module_exit(hw2_exit);
 
 
 void do_job(void){
-
     struct proc_dir_entry *proc_file_entry;
     struct task_struct* task;
 
     rcu_read_lock();
     for_each_process(task)
     {
+        // filter kernel thread. (cannot access mm, mm->pgd)
         if (NULL != task->mm && NULL != task->mm->pgd){
 
             // convert pid to string
             char pidStr[10];
             sprintf(pidStr, "%d", task->pid);
-
-            printk("pid=%d, comm=%s\n", task->pid, task->comm);
 
             proc_file_entry = proc_create(pidStr, 0, parent, &hw2_proc_fops);
         }
@@ -300,7 +271,7 @@ void do_job(void){
 }
 
 
-
+// print bars
 void printf_bar(struct seq_file* s){
     int i;
     for (i = 0; i < 80; i++) seq_printf(s, "-");
