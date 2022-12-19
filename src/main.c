@@ -10,15 +10,13 @@
 #include <linux/pgtable.h>
 #include <linux/uaccess.h>
 
-#include <linux/slab.h>     // for kmalloc, kfree
-
 #define PROC_NAME "hw2"
-#define PERIOD_DEFAULT 5;
+#define PERIOD_DEFAULT 5;   // DEFAULT: 5 seconds
 
 MODULE_AUTHOR("Kim, Minhyup");
 MODULE_LICENSE("GPL v2");
 
-
+// passing argument "period"
 int period = PERIOD_DEFAULT;
 module_param(period, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 MODULE_PARM_DESC(period, "Period for investigate");
@@ -27,11 +25,10 @@ struct proc_dir_entry* parent;  // parent name = "hw2"
 static const struct proc_ops hw2_proc_fops;
 int try_count = 0;
 
+// for process pid name(ex. "1", "3", "1234")
 char* name = "NULL";
 
-
 void do_job(void);
-void traverseAll(struct seq_file* s);
 void printBaseInfo(struct seq_file* s, struct task_struct* currProcess);
 void printf_bar(struct seq_file* s);
 void printf_code(struct seq_file* s, struct task_struct* currProcess);
@@ -54,6 +51,7 @@ static int hw2_seq_show(struct seq_file *s, void *v)
     kstrtol(name, 10, &id);
     task = get_pid_task(find_get_pid((int) id), PIDTYPE_PID);
 
+    // if no process, do nothing
     if (NULL == task){
         seq_printf(s, "NO PROCESS!\n");
     }
@@ -65,14 +63,15 @@ static int hw2_seq_show(struct seq_file *s, void *v)
     return 0;
 }
 
+// for traverse Processes
 #define next_task(p) \
         list_entry_rcu((p)->tasks.next, struct task_struct, tasks)
 
 #define for_each_process(p) \
         for (p = &init_task ; (p = next_task(p)) != &init_task ; )
 
-void printBaseInfo(struct seq_file* s, struct task_struct* currProcess){
 
+void printBaseInfo(struct seq_file* s, struct task_struct* currProcess){
     printf_bar(s);
     seq_printf(s, "Student name(ID): %s(%s)\n", "Kim, Minhyup", "2017127046");
     seq_printf(s, "Process name(ID): %s(%d)\n", currProcess->comm, currProcess->pid);
@@ -90,7 +89,7 @@ void printBaseInfo(struct seq_file* s, struct task_struct* currProcess){
         seq_printf(s, "cannot access task_struct->mm\n");
 }
 
-
+// print PGD, PUD, PMD, PTE, Physical address of currProcess's area
 static void printAddressAndValue(struct seq_file* s, struct task_struct* currProcess, unsigned long vaddr)
 {
     pgd_t *pgd;
@@ -212,12 +211,15 @@ static const struct proc_ops hw2_proc_fops = {
 };
 
 
+// for timer
 static struct timer_list my_timer;
 static void my_timer_func(struct timer_list *unused)
 {
+    // remove /proc/hw2 directory and recreate
     remove_proc_entry(PROC_NAME, NULL);
     parent = proc_mkdir(PROC_NAME, NULL);
 
+    // increment try count
     try_count++;
     do_job();
 
@@ -241,6 +243,7 @@ static int __init hw2_init(void) {
 }
 
 static void __exit hw2_exit(void) {
+    // remove hw2 directory
     remove_proc_entry(PROC_NAME, NULL);
     del_timer(&my_timer);
 }
@@ -254,6 +257,7 @@ void do_job(void){
     struct proc_dir_entry *proc_file_entry;
     struct task_struct* task;
 
+    // traverse all processes and create each file
     rcu_read_lock();
     for_each_process(task)
     {
