@@ -25,7 +25,7 @@ MODULE_PARM_DESC(period, "Period for investigate");
 
 struct proc_dir_entry* parent;  // parent name = "hw2"
 static const struct proc_ops hw2_proc_fops;
-static int try_count = 0;
+int try_count = 0;
 
 char* name = "NULL";
 
