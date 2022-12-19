@@ -52,8 +52,6 @@ static int hw2_seq_show(struct seq_file *s, void *v)
     kstrtol(name, 10, &id);
     task = get_pid_task(find_get_pid((int) id), PIDTYPE_PID);
 
-    // seq_printf(s, "period = %d\n", period);
-
     if (NULL == task){
         seq_printf(s, "NO PROCESS!\n");
     }
@@ -71,29 +69,29 @@ static int hw2_seq_show(struct seq_file *s, void *v)
 #define for_each_process(p) \
         for (p = &init_task ; (p = next_task(p)) != &init_task ; )
 
-static void get_pgtable_macro(struct seq_file* s)
-{
-    seq_printf(s, "PAGE_OFFSET = 0x%lx\n", PAGE_OFFSET);
-    seq_printf(s,"PGDIR_SHIFT = %d\n", PGDIR_SHIFT);
-    seq_printf(s,"PUD_SHIFT = %d\n", PUD_SHIFT);
-    seq_printf(s,"PMD_SHIFT = %d\n", PMD_SHIFT);
-    seq_printf(s,"PAGE_SHIFT = %d\n", PAGE_SHIFT);
+// static void get_pgtable_macro(struct seq_file* s)
+// {
+//     seq_printf(s, "PAGE_OFFSET = 0x%lx\n", PAGE_OFFSET);
+//     seq_printf(s,"PGDIR_SHIFT = %d\n", PGDIR_SHIFT);
+//     seq_printf(s,"PUD_SHIFT = %d\n", PUD_SHIFT);
+//     seq_printf(s,"PMD_SHIFT = %d\n", PMD_SHIFT);
+//     seq_printf(s,"PAGE_SHIFT = %d\n", PAGE_SHIFT);
 
-    seq_printf(s,"PTRS_PER_PGD = %d\n", PTRS_PER_PGD);
-    seq_printf(s,"PTRS_PER_PUD = %d\n", PTRS_PER_PUD);
-    seq_printf(s,"PTRS_PER_PMD = %d\n", PTRS_PER_PMD);
-    seq_printf(s,"PTRS_PER_PTE = %d\n", PTRS_PER_PTE);
+//     seq_printf(s,"PTRS_PER_PGD = %d\n", PTRS_PER_PGD);
+//     seq_printf(s,"PTRS_PER_PUD = %d\n", PTRS_PER_PUD);
+//     seq_printf(s,"PTRS_PER_PMD = %d\n", PTRS_PER_PMD);
+//     seq_printf(s,"PTRS_PER_PTE = %d\n", PTRS_PER_PTE);
 
-    seq_printf(s,"PAGE_MASK = 0x%lx\n", PAGE_MASK);
-}
+//     seq_printf(s,"PAGE_MASK = 0x%lx\n", PAGE_MASK);
+// }
 
 void printBaseInfo(struct seq_file* s, struct task_struct* currProcess){
 
     printf_bar(s);
     seq_printf(s, "Student name(ID): %s(%s)\n", "Kim, Minhyup", "2017127046");
     seq_printf(s, "Process name(ID): %s(%lu)\n", currProcess->comm, currProcess->pid);
-    seq_printf(s, "Memory info #%d\n", try_count); // 0은 조사한 횟수
-    // Caution: kthread에서 currProcess->mm->pgd 에러
+    seq_printf(s, "Memory info #%d\n", try_count);
+
     if (NULL != currProcess->mm && NULL != currProcess->mm->pgd){
         seq_printf(s, "PGD base address: 0x%lx\n", currProcess->mm->pgd);
         printf_code(s, currProcess);
@@ -260,7 +258,6 @@ static int __init hw2_init(void) {
 
     // 1. traverse user processes and print PGD, PUD, PMD, PTE, Physical address
     do_job();
-
 
     // 2. timer => do job per period
     timer_setup(&my_timer, my_timer_func, 0);
